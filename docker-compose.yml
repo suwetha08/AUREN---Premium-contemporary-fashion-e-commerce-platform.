@@ -1,0 +1,132 @@
+# ─── AUREN E-Commerce — Docker Compose ───────────────────────────────────────
+#
+# Services:
+#   nginx     — Load balancer (port 80)
+#   backend1  — Next.js instance 1 (port 3001)
+#   backend2  — Next.js instance 2 (port 3002)
+#   backend3  — Next.js instance 3 (port 3003)
+#   redis     — Shared Redis (port 6379, internal only)
+#
+# Usage:
+#   docker compose up --build
+#   docker compose up --scale backend=3   (alternative)
+
+version: '3.9'
+
+services:
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"   # expose for local debugging; remove in production
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Backend instances ────────────────────────────────────────────────────────
+  backend1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      SESSION_TTL: ${SESSION_TTL:-3600}
+      MAX_CONCURRENT_USERS: ${MAX_CONCURRENT_USERS:-100}
+      MAX_CONCURRENT_CONNECTIONS: ${MAX_CONCURRENT_CONNECTIONS:-1000}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
+      REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-60}
+      PRODUCT_CACHE_TTL: ${PRODUCT_CACHE_TTL:-60}
+      METRICS_SECRET: ${METRICS_SECRET:-change-me}
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      SESSION_TTL: ${SESSION_TTL:-3600}
+      MAX_CONCURRENT_USERS: ${MAX_CONCURRENT_USERS:-100}
+      MAX_CONCURRENT_CONNECTIONS: ${MAX_CONCURRENT_CONNECTIONS:-1000}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
+      REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-60}
+      PRODUCT_CACHE_TTL: ${PRODUCT_CACHE_TTL:-60}
+      METRICS_SECRET: ${METRICS_SECRET:-change-me}
+    ports:
+      - "3002:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      SESSION_TTL: ${SESSION_TTL:-3600}
+      MAX_CONCURRENT_USERS: ${MAX_CONCURRENT_USERS:-100}
+      MAX_CONCURRENT_CONNECTIONS: ${MAX_CONCURRENT_CONNECTIONS:-1000}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
+      REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-60}
+      PRODUCT_CACHE_TTL: ${PRODUCT_CACHE_TTL:-60}
+      METRICS_SECRET: ${METRICS_SECRET:-change-me}
+    ports:
+      - "3003:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── Nginx load balancer ──────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backend1:
+        condition: service_healthy
+      backend2:
+        condition: service_healthy
+      backend3:
+        condition: service_healthy
+
+volumes:
+  redis_data:
