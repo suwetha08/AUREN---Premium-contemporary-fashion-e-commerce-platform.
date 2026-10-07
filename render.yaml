@@ -1,0 +1,5 @@
+services:
+  - type: redis
+    name: auren-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru

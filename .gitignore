@@ -41,3 +41,14 @@ yarn-error.log*
 next-env.d.ts
 
 !.env.example
+
+# AI assistant meta files
+AGENTS.md
+CLAUDE.md
+
+# Default Next.js placeholder assets
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
